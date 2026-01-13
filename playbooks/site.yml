@@ -1,0 +1,15 @@
+---
+# Main playbook - runs all configuration
+- name: Configure Homelab Server
+  hosts: homelab
+  become: yes
+  
+  tasks:
+    - name: Display target server information
+      debug:
+        msg: "Configuring {{ inventory_hostname }} ({{ ansible_host }})"
+
+- import_playbook: base.yml
+# - import_playbook: docker.yml      # Uncomment when ready
+# - import_playbook: k3s.yml         # Uncomment when ready
+# - import_playbook: security.yml    # Uncomment when ready

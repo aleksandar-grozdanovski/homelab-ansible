@@ -1,0 +1,96 @@
+---
+# Base system configuration
+- name: Base System Configuration
+  hosts: homelab
+  become: yes
+  
+  vars:
+    hostname: dellbox
+    timezone: Europe/Berlin
+    base_packages:
+      - vim
+      - curl
+      - wget
+      - git
+      - htop
+      - net-tools
+      - dnsutils
+      - ufw
+      - python3-pip
+      - build-essential
+  
+  tasks:
+    - name: Set hostname
+      hostname:
+        name: "{{ hostname }}"
+      
+    - name: Update /etc/hosts with hostname
+      lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1'
+        line: "127.0.1.1 {{ hostname }}"
+        state: present
+    
+    - name: Set timezone
+      timezone:
+        name: "{{ timezone }}"
+    
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+    
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+        autoremove: yes
+      register: apt_upgrade
+      changed_when: apt_upgrade.changed
+    
+    - name: Install base packages
+      apt:
+        name: "{{ base_packages }}"
+        state: present
+    
+    - name: Disable lid close suspend (for laptop servers)
+      lineinfile:
+        path: /etc/systemd/logind.conf
+        regexp: '^#?HandleLidSwitch='
+        line: 'HandleLidSwitch=ignore'
+        state: present
+      notify: restart logind
+    
+    - name: Disable lid close suspend on external power
+      lineinfile:
+        path: /etc/systemd/logind.conf
+        regexp: '^#?HandleLidSwitchExternalPower='
+        line: 'HandleLidSwitchExternalPower=ignore'
+        state: present
+      notify: restart logind
+    
+    - name: Create homelab user group
+      group:
+        name: homelab
+        state: present
+    
+    - name: Ensure user is in homelab group
+      user:
+        name: acedxl
+        groups: homelab
+        append: yes
+    
+    - name: Display system information
+      debug:
+        msg:
+          - "Hostname: {{ ansible_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Kernel: {{ ansible_kernel }}"
+          - "Architecture: {{ ansible_architecture }}"
+          - "Memory: {{ (ansible_memtotal_mb / 1024) | round(1) }} GB"
+          - "CPUs: {{ ansible_processor_vcpus }}"
+  
+  handlers:
+    - name: restart logind
+      service:
+        name: systemd-logind
+        state: restarted

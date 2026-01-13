@@ -1,0 +1,43 @@
+# Git ignore for Ansible repository
+
+# Inventory files with credentials
+inventory/hosts
+
+# Ansible Vault password file
+.vault_pass
+
+# Ansible retry files
+*.retry
+
+# Fact cache
+/tmp/ansible_facts/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Terraform (for later)
+*.tfstate
+*.tfstate.backup
+.terraform/
+*.tfvars
+
+# Sensitive files
+secrets.yml
+*.pem
+*.key

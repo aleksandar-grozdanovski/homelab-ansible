@@ -1,0 +1,56 @@
+---
+# Quick test playbook - just gather information, no changes
+- name: Homelab Server Information
+  hosts: homelab
+  become: yes
+  gather_facts: yes
+  
+  tasks:
+    - name: Display server information
+      debug:
+        msg:
+          - "==== SERVER INFORMATION ===="
+          - "Hostname: {{ ansible_hostname }}"
+          - "IP Address: {{ ansible_default_ipv4.address }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Kernel: {{ ansible_kernel }}"
+          - "Architecture: {{ ansible_architecture }}"
+          - "==== HARDWARE ===="
+          - "CPU: {{ ansible_processor[2] }}"
+          - "CPU Cores: {{ ansible_processor_vcpus }}"
+          - "Memory: {{ (ansible_memtotal_mb / 1024) | round(2) }} GB"
+          - "==== DISK ===="
+          - "Root Partition: {{ (ansible_mounts | selectattr('mount', 'equalto', '/') | first).size_total | human_readable }}"
+          - "Root Available: {{ (ansible_mounts | selectattr('mount', 'equalto', '/') | first).size_available | human_readable }}"
+    
+    - name: Check if Docker is installed
+      command: docker --version
+      register: docker_version
+      ignore_errors: yes
+      changed_when: false
+    
+    - name: Display Docker status
+      debug:
+        msg: "{{ docker_version.stdout if docker_version.rc == 0 else 'Docker: Not installed' }}"
+    
+    - name: Check if K3s is installed
+      command: k3s --version
+      register: k3s_version
+      ignore_errors: yes
+      changed_when: false
+    
+    - name: Display K3s status
+      debug:
+        msg: "{{ k3s_version.stdout_lines[0] if k3s_version.rc == 0 else 'K3s: Not installed' }}"
+    
+    - name: Check running Docker containers
+      shell: docker ps --format 'table {{"{{"}}.Names{{"}}"}}\t{{"{{"}}.Status{{"}}"}}' 
+      register: docker_ps
+      ignore_errors: yes
+      changed_when: false
+      when: docker_version.rc == 0
+    
+    - name: Display running containers
+      debug:
+        msg: "{{ docker_ps.stdout_lines }}"
+      when: docker_version.rc == 0 and docker_ps is defined and docker_ps.rc == 0
