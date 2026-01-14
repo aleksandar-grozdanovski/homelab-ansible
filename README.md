@@ -26,6 +26,10 @@ Rebuild the entire dellbox server in **under 30 minutes** from a fresh Debian in
   sudo apt install ansible  # Debian/Ubuntu
   brew install ansible      # macOS
   ```
+- Required Ansible collections:
+  ```bash
+  ansible-galaxy collection install -r requirements.yml
+  ```
 
 ### Run Full Setup
 ```bash
@@ -41,6 +45,9 @@ ansible-playbook -i inventory/hosts playbooks/site.yml -K
 
 ### Run Specific Playbooks
 ```bash
+# Gather information only (no changes)
+ansible-playbook -i inventory/hosts playbooks/info.yml -K
+
 # Base system only
 ansible-playbook -i inventory/hosts playbooks/base.yml -K
 
@@ -49,6 +56,9 @@ ansible-playbook -i inventory/hosts playbooks/docker.yml -K
 
 # K3s only
 ansible-playbook -i inventory/hosts playbooks/k3s.yml -K
+
+# Security hardening only
+ansible-playbook -i inventory/hosts playbooks/security.yml -K
 ```
 
 ## 📁 Repository Structure
