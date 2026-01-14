@@ -1,0 +1,101 @@
+---
+# playbooks/k3s.yml
+# Install K3s lightweight Kubernetes distribution
+
+- name: Install K3s Kubernetes
+  hosts: all
+  become: true
+  
+  vars:
+    k3s_version: "v1.30.7+k3s1"  # Specify version for reproducibility
+    k3s_install_script: /tmp/k3s-install.sh
+  
+  tasks:
+    - name: Check if K3s is already installed
+      stat:
+        path: /usr/local/bin/k3s
+      register: k3s_installed
+
+    - name: Display K3s installation status
+      debug:
+        msg: "K3s is {{ 'already installed' if k3s_installed.stat.exists else 'not installed' }}"
+
+    - name: Download K3s installation script
+      get_url:
+        url: https://get.k3s.io
+        dest: "{{ k3s_install_script }}"
+        mode: '0755'
+      when: not k3s_installed.stat.exists
+
+    - name: Install K3s
+      shell: |
+        INSTALL_K3S_VERSION={{ k3s_version }} {{ k3s_install_script }}
+      environment:
+        INSTALL_K3S_EXEC: "server --disable traefik"
+      when: not k3s_installed.stat.exists
+      register: k3s_install
+
+    - name: Wait for K3s to be ready
+      command: k3s kubectl get nodes
+      register: k3s_nodes
+      until: k3s_nodes.rc == 0
+      retries: 10
+      delay: 5
+      changed_when: false
+      when: not k3s_installed.stat.exists
+
+    - name: Create .kube directory for user
+      file:
+        path: "/home/{{ ansible_user }}/.kube"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Copy K3s kubeconfig to user directory
+      copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "/home/{{ ansible_user }}/.kube/config"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0600'
+        remote_src: yes
+
+    - name: Update kubeconfig server address
+      replace:
+        path: "/home/{{ ansible_user }}/.kube/config"
+        regexp: '127.0.0.1'
+        replace: "{{ ansible_host }}"
+
+    - name: Ensure K3s service is enabled and started
+      systemd:
+        name: k3s
+        enabled: yes
+        state: started
+
+    - name: Get K3s version
+      command: k3s --version
+      register: k3s_version_output
+      changed_when: false
+
+    - name: Display K3s version
+      debug:
+        msg: "{{ k3s_version_output.stdout_lines[0] }}"
+
+    - name: Get cluster nodes
+      command: k3s kubectl get nodes
+      register: k3s_nodes_output
+      changed_when: false
+
+    - name: Display cluster nodes
+      debug:
+        msg: "{{ k3s_nodes_output.stdout_lines }}"
+
+    - name: Get running pods
+      command: k3s kubectl get pods -A
+      register: k3s_pods_output
+      changed_when: false
+
+    - name: Display running pods
+      debug:
+        msg: "{{ k3s_pods_output.stdout_lines }}"
